@@ -27,6 +27,6 @@ Usage
 
 ::
 
-   python -m src.train
+   python -m src.train -help
    python -m src.evaluate --checkpoint results/checkpoints/best.pth
    python -m src.visualize --checkpoint results/checkpoints/best.pth
