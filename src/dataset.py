@@ -12,7 +12,8 @@ from typing import Tuple
 import numpy as np
 import torch
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, random_split
+from sklearn.model_selection import KFold
+from torch.utils.data import Dataset, DataLoader, random_split, Subset
 from torchvision import transforms
 
 from src.config import (
@@ -172,4 +173,53 @@ def get_dataloaders(
         pin_memory=True,
     )
     print(f"[dataset] train={n_train}  val={n_val}  total={n_total}")
+    return train_loader, val_loader
+
+
+def get_dataloaders_kfold(
+    fold: int,
+    n_splits: int = 5,
+    images_dir: Path = IMAGES_DIR,
+    masks_dir: Path = MASKS_DIR,
+    image_size: Tuple[int, int] = IMAGE_SIZE,
+    batch_size: int = BATCH_SIZE,
+    seed: int = SEED,
+    num_workers: int = 4,
+) -> Tuple[DataLoader, DataLoader]:
+    """
+    Build train and validation DataLoaders for a given K-fold split.
+
+    Args:
+        fold: Fold index (0 to n_splits-1).
+        n_splits: Number of folds.
+
+    Returns:
+        (train_loader, val_loader)
+    """
+    full_dataset = PotsdamDataset(images_dir, masks_dir, image_size)
+    indices = np.arange(len(full_dataset))
+
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    splits = list(kf.split(indices))
+    train_idx, val_idx = splits[fold]
+
+    train_ds = Subset(full_dataset, train_idx)
+    val_ds = Subset(full_dataset, val_idx)
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    print(f"[dataset] fold {fold + 1}/{n_splits}  train={len(train_idx)}  val={len(val_idx)}")
     return train_loader, val_loader
