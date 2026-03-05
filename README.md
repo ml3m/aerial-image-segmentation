@@ -1,1 +1,0 @@
-# aerial-image-segmentation
