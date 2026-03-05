@@ -20,7 +20,6 @@ Install
 
    pip install -r requirements.txt
 
-Requires Kaggle API key at ``~/.kaggle/kaggle.json``.
 
 Usage
 -----
