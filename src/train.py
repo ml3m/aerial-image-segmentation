@@ -51,18 +51,29 @@ def train_one_epoch(
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
+    scaler: torch.amp.GradScaler | None = None,
+    use_amp: bool = False,
 ) -> float:
     model.train()
     total_loss = 0.0
+    amp_ctx = torch.amp.autocast(device.type, enabled=use_amp)
+
     for images, masks in _wrap_tqdm(loader, desc="  train", leave=False):
         images = images.to(device, non_blocking=True)
         masks  = masks.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        logits = model(images)               # (B, C, H, W)
-        loss   = criterion(logits, masks)    # masks: (B, H, W) int64
-        loss.backward()
-        optimizer.step()
+        with amp_ctx:
+            logits = model(images)               # (B, C, H, W)
+            loss   = criterion(logits, masks)    # masks: (B, H, W) int64
+
+        if scaler is not None:
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
 
         total_loss += loss.item() * images.size(0)
 
@@ -74,14 +85,18 @@ def validate(
     loader,
     criterion: nn.Module,
     device: torch.device,
+    use_amp: bool = False,
 ) -> float:
     model.eval()
     total_loss = 0.0
+    amp_ctx = torch.amp.autocast(device.type, enabled=use_amp)
+
     for images, masks in _wrap_tqdm(loader, desc="  val  ", leave=False):
         images = images.to(device, non_blocking=True)
         masks  = masks.to(device, non_blocking=True)
-        logits = model(images)
-        loss   = criterion(logits, masks)
+        with amp_ctx:
+            logits = model(images)
+            loss   = criterion(logits, masks)
         total_loss += loss.item() * images.size(0)
     return total_loss / len(loader.dataset)
 
@@ -93,13 +108,19 @@ def main(args: argparse.Namespace) -> None:
     train_loader, val_loader = get_dataloaders(
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        persistent_workers=args.num_workers > 0,
     )
 
     # Model
     model = UNet(in_channels=3, num_classes=NUM_CLASSES).to(device)
+    if args.compile:
+        model = torch.compile(model, mode="reduce-overhead")
 
     # Loss: CrossEntropy handles multi-class pixel classification
     criterion = nn.CrossEntropyLoss()
+
+    use_amp = args.amp and device.type in ("cuda", "mps")
+    scaler = torch.amp.GradScaler(device) if use_amp and device.type == "cuda" else None
 
     optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
     scheduler = ReduceLROnPlateau(
@@ -118,13 +139,23 @@ def main(args: argparse.Namespace) -> None:
         best_val_loss = ckpt.get("val_loss", best_val_loss)
         print(f"[train] Resuming from epoch {start_epoch}")
 
+    speedups = []
+    if use_amp:
+        speedups.append("AMP")
+    if args.compile:
+        speedups.append("compile")
+    speedup_str = f"  [{', '.join(speedups)}]" if speedups else ""
+
     print(f"\n{'='*55}")
-    print(f"  U-Net training  |  {args.epochs} epochs  |  device: {device}")
+    print(f"  U-Net training  |  {args.epochs} epochs  |  device: {device}{speedup_str}")
     print(f"{'='*55}\n")
 
     for epoch in range(start_epoch, args.epochs + 1):
-        train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss   = validate(model, val_loader, criterion, device)
+        train_loss = train_one_epoch(
+            model, train_loader, criterion, optimizer, device,
+            scaler=scaler, use_amp=use_amp,
+        )
+        val_loss   = validate(model, val_loader, criterion, device, use_amp=use_amp)
         scheduler.step(val_loss)
 
         history["train_loss"].append(train_loss)
@@ -159,6 +190,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lr",          type=float, default=LEARNING_RATE, help="Learning rate")
     p.add_argument("--num-workers", type=int,   default=4,             help="DataLoader workers")
     p.add_argument("--resume",      type=str,   default=None,          help="Path to checkpoint to resume")
+    p.add_argument("--amp",         action="store_true",               help="Use mixed precision (FP16) for faster training")
+    p.add_argument("--compile",     action="store_true",               help="Use torch.compile for faster training")
     return p.parse_args()
 
 if __name__ == "__main__":

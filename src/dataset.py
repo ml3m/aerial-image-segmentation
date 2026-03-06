@@ -140,6 +140,7 @@ def get_dataloaders(
     train_split: float = TRAIN_SPLIT,
     seed: int = SEED,
     num_workers: int = 4,
+    persistent_workers: bool = False,
 ) -> Tuple[DataLoader, DataLoader]:
     """
     Build train and validation DataLoaders from the Potsdam dataset.
@@ -163,6 +164,7 @@ def get_dataloaders(
         num_workers=num_workers,
         pin_memory=True,
         drop_last=True,
+        persistent_workers=persistent_workers and num_workers > 0,
     )
     val_loader = DataLoader(
         val_ds,
@@ -170,6 +172,7 @@ def get_dataloaders(
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
+        persistent_workers=persistent_workers and num_workers > 0,
     )
     print(f"[dataset] train={n_train}  val={n_val}  total={n_total}")
     return train_loader, val_loader
