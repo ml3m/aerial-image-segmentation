@@ -15,6 +15,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 from pathlib import Path
 
 import torch
@@ -45,18 +46,32 @@ def _wrap_tqdm(iterable, **kwargs):
         return tqdm(iterable, **kwargs)
     return iterable
 
+def _get_amp_context(device: torch.device, enabled: bool):
+    """Return autocast context. Uses cuda.amp for ROCm/CUDA compatibility."""
+    if not enabled:
+        return nullcontext()
+    if device.type == "cuda":
+        return torch.cuda.amp.autocast()
+    if device.type == "mps":
+        try:
+            return torch.amp.autocast(device_type="mps", enabled=True)
+        except (AttributeError, RuntimeError):
+            return nullcontext()
+    return nullcontext()
+
+
 def train_one_epoch(
     model: nn.Module,
     loader,
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
-    scaler: torch.amp.GradScaler | None = None,
+    scaler=None,
     use_amp: bool = False,
 ) -> float:
     model.train()
     total_loss = 0.0
-    amp_ctx = torch.amp.autocast(device.type, enabled=use_amp)
+    amp_ctx = _get_amp_context(device, use_amp)
 
     for images, masks in _wrap_tqdm(loader, desc="  train", leave=False):
         images = images.to(device, non_blocking=True)
@@ -89,7 +104,7 @@ def validate(
 ) -> float:
     model.eval()
     total_loss = 0.0
-    amp_ctx = torch.amp.autocast(device.type, enabled=use_amp)
+    amp_ctx = _get_amp_context(device, use_amp)
 
     for images, masks in _wrap_tqdm(loader, desc="  val  ", leave=False):
         images = images.to(device, non_blocking=True)
@@ -114,13 +129,20 @@ def main(args: argparse.Namespace) -> None:
     # Model
     model = UNet(in_channels=3, num_classes=NUM_CLASSES).to(device)
     if args.compile:
-        model = torch.compile(model, mode="reduce-overhead")
+        try:
+            model = torch.compile(model, mode="reduce-overhead")
+        except RuntimeError as e:
+            if "Dynamo" in str(e) or "3.12" in str(e):
+                print(f"[train] torch.compile skipped (not supported on Python 3.12+): {e}")
+                args.compile = False
+            else:
+                raise
 
     # Loss: CrossEntropy handles multi-class pixel classification
     criterion = nn.CrossEntropyLoss()
 
     use_amp = args.amp and device.type in ("cuda", "mps")
-    scaler = torch.amp.GradScaler(device) if use_amp and device.type == "cuda" else None
+    scaler = torch.cuda.amp.GradScaler() if use_amp and device.type == "cuda" else None
 
     optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
     scheduler = ReduceLROnPlateau(
