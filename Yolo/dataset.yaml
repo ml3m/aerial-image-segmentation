@@ -1,0 +1,14 @@
+# ISPRS Potsdam - YOLO Segmentation Dataset Config
+# Update the paths below to match your directory structure.
+
+path: D:/IDL_proj/dataset        # root directory of the dataset
+train: images/train              # train images (relative to 'path')
+val: images/val                  # val images (relative to 'path')
+
+names:
+  0: impervious_surface
+  1: building
+  2: low_vegetation
+  3: tree
+  4: car
+  5: clutter
