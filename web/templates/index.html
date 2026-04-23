@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Run inference{% endblock %}
+{% block content %}
+<h1>Run inference</h1>
+<p class="lead">Upload an aerial image (PNG, JPEG, or TIFF). Outputs include composite, semantic mask, U-Net uncertainty, detection JSON, class-mix and YOLO summary plots, and per-detection crops when available.</p>
+
+{% if error %}
+<div class="banner banner-error" role="alert">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+  <form id="infer-form"
+        action="{{ url_for('main.infer') }}"
+        method="post"
+        enctype="multipart/form-data"
+        data-max-mb="{{ (config.MAX_CONTENT_LENGTH / (1024*1024))|int }}">
+    <div id="dropzone" class="dropzone" tabindex="0" aria-label="Drop image or activate to browse">
+      <input type="file" name="image" id="file-input" accept=".png,.jpg,.jpeg,.tif,.tiff,image/png,image/jpeg,image/tiff" hidden required>
+      <p class="dropzone-text"><strong>Drop an image here</strong> or click to choose a file.</p>
+      <p class="hint">Max size: {{ (config.MAX_CONTENT_LENGTH / (1024*1024))|int }} MB.</p>
+    </div>
+
+    <fieldset class="params">
+      <legend>Optional parameters</legend>
+      <p class="hint">Leave blank to use values from <code>config.yaml</code>.</p>
+      <div class="grid-2">
+        <label>Confidence threshold
+          <input type="text" name="conf_threshold" placeholder="{{ defaults.conf }}" autocomplete="off">
+        </label>
+        <label>IoU threshold
+          <input type="text" name="iou_threshold" placeholder="{{ defaults.iou }}" autocomplete="off">
+        </label>
+        <label>Mask alpha
+          <input type="text" name="mask_alpha" placeholder="{{ defaults.mask_alpha }}" autocomplete="off">
+        </label>
+        <label>Box thickness (px)
+          <input type="text" name="box_thickness" placeholder="{{ defaults.box_thickness }}" autocomplete="off">
+        </label>
+      </div>
+    </fieldset>
+
+    <button type="submit" class="btn primary">Run models</button>
+  </form>
+</section>
+
+{% if job_id %}
+<section class="panel results">
+  <h2>Results</h2>
+  <p class="hint">Job ID: <code>{{ job_id }}</code></p>
+  <div class="results-grid figures">
+    {% if artifacts.get('input_preview.png') %}
+    <figure>
+      <figcaption>Input</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='input_preview.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='input_preview.png') }}" alt="Uploaded input preview">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('result.png') %}
+    <figure>
+      <figcaption>Composite</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='result.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='result.png') }}" alt="Composite: mask overlay and detections">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('mask.png') %}
+    <figure>
+      <figcaption>Semantic mask</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='mask.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='mask.png') }}" alt="U-Net semantic mask">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('uncertainty.png') %}
+    <figure>
+      <figcaption>U-Net uncertainty</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='uncertainty.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='uncertainty.png') }}" alt="U-Net entropy heatmap">
+      </a>
+    </figure>
+    {% endif %}
+  </div>
+
+  <div class="analytics-row figures">
+    {% if artifacts.get('class_mix.png') %}
+    <figure class="analytics-fig">
+      <figcaption>Class mix</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='class_mix.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='class_mix.png') }}" alt="Histogram of U-Net classes in mask">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('yolo_analytics.png') %}
+    <figure class="analytics-fig wide">
+      <figcaption>YOLO analytics</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='yolo_analytics.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='yolo_analytics.png') }}" alt="YOLO counts, confidence, centers">
+      </a>
+    </figure>
+    {% endif %}
+  </div>
+
+  {% if crop_urls %}
+  <h3>Detection crops</h3>
+  <div class="crops-strip">
+    {% for u in crop_urls %}
+    <a class="crop-thumb" href="{{ u }}"><img src="{{ u }}" alt="Detection crop"></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <p><a href="{{ url_for('main.job_file', job_id=job_id, filename='detections.json') }}" class="btn secondary">Download detections.json</a></p>
+
+  <h3>Class legend (U-Net)</h3>
+  <table class="table">
+    <thead><tr><th>Class</th><th>RGB</th></tr></thead>
+    <tbody>
+      {% for row in cfg.unet.class_info %}
+      <tr>
+        <td>{{ row[1] }}</td>
+        <td><span class="swatch" style="--rgb: {{ row[2] }},{{ row[3] }},{{ row[4] }}"></span> {{ row[2] }}, {{ row[3] }}, {{ row[4] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if detections is not none %}
+  <h3>Detections (YOLO)</h3>
+  {% if detections|length == 0 %}
+  <p class="hint">No detections for this image (or YOLO weights missing).</p>
+  {% else %}
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr><th>Class</th><th>Confidence</th><th>Corners (x, y)</th></tr>
+      </thead>
+      <tbody>
+        {% for d in detections %}
+        <tr>
+          <td>{{ d.class_name }}</td>
+          <td>{{ "%.3f"|format(d.conf) }}</td>
+          <td class="mono">{{ d.corners }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

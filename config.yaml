@@ -68,7 +68,8 @@ yolo:
 # ----------------------------------------------------------------------------
 inference:
   unet_weights: "results/unet/checkpoints/best.pth"
-  yolo_weights: "results/yolo/train/weights/best.pt"
+  # Match your Ultralytics run name (e.g. train/ vs safe/weights/best.pt).
+  yolo_weights: "results/yolo/safe/weights/best.pt"
   conf_threshold: 0.25
   iou_threshold: 0.45
   mask_alpha: 0.45

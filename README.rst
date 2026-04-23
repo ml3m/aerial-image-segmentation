@@ -30,6 +30,7 @@ Project layout
 ::
 
    aerial-image-segmentation/
+   ├── web/                     Flask UI (upload, results, training figures)
    ├── figures/                 optional PNGs for README (training / inference)
    ├── config.yaml              unified hyperparameters (YOLO + U-Net + paths)
    ├── requirements.txt
@@ -222,11 +223,63 @@ Combined inference
 
    python infer.py --image path/to/aerial.jpg
 
-Writes three artifacts to ``results/inference/``:
+Writes artifacts to ``results/inference/``:
 
 * ``detections.json`` — list of OBB detections (class, confidence, 4 corners).
 * ``mask.png`` — colorized 6-class semantic segmentation (full resolution).
+* ``uncertainty.png`` — U-Net per-pixel entropy heatmap (colormap PNG).
 * ``result.png`` — the input image with the mask overlay and OBB polygons.
+
+
+Web UI (Flask)
+--------------
+
+Browser upload and visualization for the same combined pipeline as ``infer.py``.
+Use the **same Python environment** as CLI inference (PyTorch, Ultralytics,
+OpenCV, etc.).
+
+::
+
+   pip install -r requirements.txt -r requirements-web.txt
+
+If you see ``No module named 'cv2'``, OpenCV is missing — run
+``pip install opencv-python-headless`` (or reinstall both requirement files
+above).
+
+From the **repository root** (so ``config.yaml`` and weights paths resolve):
+
+::
+
+   flask --app web.app:create_app run --host 0.0.0.0 --port 5000
+
+Open http://127.0.0.1:5000/ — upload an image, optional inference thresholds,
+then view composite, mask, uncertainty map, plots (class mix, YOLO analytics),
+detection crops, and detections. After a successful POST, the app responds with
+**HTTP 303** so the browser does not replay the upload on Back; responses for
+result pages and job artifacts use ``Cache-Control: no-store, private`` to
+avoid stale thumbnails when navigating history.
+
+Per job (under ``web/uploads/<uuid>/``) the UI may show ``out/input_preview.png``,
+``out/class_mix.png``, ``out/yolo_analytics.png``, and ``out/crops/crop_NN.png``
+in addition to the CLI outputs above.
+
+Optional: set ``WEB_CLEAR_UPLOADS_ON_START=1`` to delete existing contents of
+the upload directory each time the app starts (default off; useful for dev).
+
+**Production:** use a **single** worker so only one inference uses the GPU at a time:
+
+::
+
+   gunicorn -w 1 -b 0.0.0.0:5000 'web.app:create_app()'
+
+Optional: set ``MAX_UPLOAD_MB`` (default 50) to cap upload size.
+
+**Docker:** the image installs ``requirements-web.txt`` and exposes port 5000.
+Override the container command, for example:
+
+::
+
+   ./docker-run.sh gunicorn -w 1 -b 0.0.0.0:5000 'web.app:create_app()'
 
 
 Tests

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Training figures{% endblock %}
+{% block content %}
+<h1>Training figures</h1>
+<p class="lead">Static plots from your training runs. Add PNGs under <code>figures/</code> in the repository (see README).</p>
+
+{% if figures|length == 0 %}
+<p class="hint">No figures found. Copy exports to <code>figures/training_yolo.png</code>, <code>figures/training_unet.png</code>, or <code>figures/inference_composite.png</code>.</p>
+{% else %}
+<div class="figure-list">
+  {% for fig in figures %}
+  <figure class="panel">
+    <figcaption>{{ fig.label }}</figcaption>
+    <a href="{{ fig.url }}"><img src="{{ fig.url }}" alt="{{ fig.label }}"></a>
+  </figure>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

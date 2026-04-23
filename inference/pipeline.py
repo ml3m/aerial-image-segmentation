@@ -6,6 +6,7 @@ End-to-end inference pipeline:
 Artifacts written under `cfg.paths.inference_out_dir` (default `results/inference/`):
     detections.json   list of OBB detections
     mask.png          colorized semantic mask (full-resolution)
+    uncertainty.png   U-Net entropy heatmap (colormap BGR)
     result.png        composite (mask overlay + boxes)
 """
 
@@ -21,7 +22,6 @@ import numpy as np
 import torch
 
 from data.augmentations import build_inference_transform
-from data.potsdam_dataset import build_color_to_class  # noqa: F401 (kept for debugging)
 from inference.combine import Detection, combine
 from inference.visualization import palette_from_class_info
 from models.unet import UNet
@@ -42,8 +42,13 @@ def _run_unet(
     unet: UNet,
     device: torch.device,
     image_size: tuple[int, int],
-) -> np.ndarray:
-    """Return an HxW class-index mask at the ORIGINAL image resolution."""
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Return (class-index mask HxW, uncertainty visualization BGR HxWx3).
+
+    Uncertainty is Shannon entropy of the per-pixel class distribution,
+    normalized by log(C), colorized with INFERNO for display.
+    """
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     tf = build_inference_transform(image_size)
     tensor = tf(image=image_rgb)["image"].unsqueeze(0).to(device)
@@ -51,13 +56,23 @@ def _run_unet(
     unet.eval()
     with torch.no_grad():
         logits = unet(tensor)
+        probs = torch.softmax(logits, dim=1)
+        ent = -(probs * torch.log(probs + 1e-8)).sum(dim=1)[0]
     pred = torch.argmax(logits, dim=1)[0].cpu().numpy().astype(np.int32)
+    ent_np = ent.cpu().numpy().astype(np.float32)
 
-    # Resize back to the input resolution using nearest so class ids are preserved.
     h, w = image_bgr.shape[:2]
+    num_classes = int(logits.shape[1])
+    ent_max = float(np.log(max(num_classes, 2)))
+
     if pred.shape != (h, w):
         pred = cv2.resize(pred, (w, h), interpolation=cv2.INTER_NEAREST)
-    return pred
+        ent_np = cv2.resize(ent_np, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    ent_norm = np.clip(ent_np / ent_max, 0.0, 1.0)
+    ent_u8 = (ent_norm * 255.0).astype(np.uint8)
+    uncertainty_bgr = cv2.applyColorMap(ent_u8, cv2.COLORMAP_INFERNO)
+    return pred, uncertainty_bgr
 
 
 def _run_yolo(
@@ -129,7 +144,8 @@ def run_inference(
     unet_model: Optional[UNet] = None,  # for tests / advanced use
 ) -> dict:
     """
-    Run YOLO + U-Net on a single image and write three artifacts.
+    Run YOLO + U-Net on a single image and write mask, composite, uncertainty,
+    and detections JSON.
 
     Returns a dict of absolute paths to the written files.
     """
@@ -155,7 +171,7 @@ def run_inference(
         unet_model = unet_model.to(device)
 
     image_bgr = _read_image_bgr(image_path)
-    mask = _run_unet(
+    mask, uncertainty_bgr = _run_unet(
         image_bgr,
         unet_model,
         device,
@@ -189,9 +205,11 @@ def run_inference(
         "mask": out_dir / "mask.png",
         "result": out_dir / "result.png",
         "detections": out_dir / "detections.json",
+        "uncertainty": out_dir / "uncertainty.png",
     }
     cv2.imwrite(str(paths["mask"]), mask_bgr)
     cv2.imwrite(str(paths["result"]), composite_bgr)
+    cv2.imwrite(str(paths["uncertainty"]), uncertainty_bgr)
     with paths["detections"].open("w") as f:
         json.dump(_serialize_detections(detections), f, indent=2)
 
@@ -199,6 +217,7 @@ def run_inference(
         f"[infer] done:\n"
         f"  detections: {len(detections):>4d} → {paths['detections']}\n"
         f"  mask                  → {paths['mask']}\n"
+        f"  uncertainty           → {paths['uncertainty']}\n"
         f"  composite             → {paths['result']}"
     )
     return {k: str(v) for k, v in paths.items()}

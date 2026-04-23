@@ -1,0 +1,6 @@
+# Web UI — install *after* requirements.txt (same env as infer.py / training).
+# The Flask app calls inference.pipeline, which needs OpenCV and the full ML stack.
+flask>=3.0.0
+gunicorn>=22.0.0
+werkzeug>=3.0.0
+opencv-python-headless>=4.8.0

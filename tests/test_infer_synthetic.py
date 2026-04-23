@@ -33,8 +33,8 @@ def test_run_inference_without_yolo_weights(tmp_path):
         unet_model=unet,
     )
 
-    # 3. All three artifacts must exist and be non-empty / valid.
-    for key in ("mask", "result", "detections"):
+    # 3. All artifacts must exist and be non-empty / valid.
+    for key in ("mask", "result", "detections", "uncertainty"):
         p = Path(paths[key])
         assert p.is_file(), f"missing artifact: {key} at {p}"
         assert p.stat().st_size > 0
@@ -50,3 +50,7 @@ def test_run_inference_without_yolo_weights(tmp_path):
     result_img = cv2.imread(paths["result"], cv2.IMREAD_COLOR)
     assert result_img is not None
     assert result_img.shape == (256, 256, 3)
+
+    unc_img = cv2.imread(paths["uncertainty"], cv2.IMREAD_COLOR)
+    assert unc_img is not None
+    assert unc_img.shape == (256, 256, 3)

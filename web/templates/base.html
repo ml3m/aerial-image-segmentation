@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Aerial inference{% endblock %} | U-Net + YOLO OBB</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a href="{{ url_for('main.index') }}" class="brand">Aerial segmentation</a>
+      <nav class="nav">
+        <a href="{{ url_for('main.index') }}">Run inference</a>
+        <a href="{{ url_for('main.training') }}">Training figures</a>
+        <a href="{{ url_for('main.health') }}">Health</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer wrap">
+    <p>Combined U-Net semantic segmentation and YOLOv8 oriented bounding-box detection. Inference only; train via CLI.</p>
+  </footer>
+</body>
+</html>
