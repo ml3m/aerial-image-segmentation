@@ -259,6 +259,43 @@ detection crops, and detections. After a successful POST, the app responds with
 result pages and job artifacts use ``Cache-Control: no-store, private`` to
 avoid stale thumbnails when navigating history.
 
+Frontend (example screenshots)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These files under ``figures/`` are taken from the Flask UI: the **Run
+inference** view, a sample **input** image, the **Results** view (composites,
+mask, uncertainty, and analytics), and **per-detection crops** from YOLO.
+
+.. figure:: figures/top_of_page_upload_and_parameters_area.jpeg
+   :width: 100%
+   :align: center
+   :alt: Aerial segmentation web UI — upload and optional inference parameters
+
+   Upload, optional parameters (or defaults from ``config.yaml``), and **Run
+   models**.
+
+.. figure:: figures/original_aerial_picture.jpeg
+   :width: 100%
+   :align: center
+   :alt: Example aerial input image (highway interchange)
+
+   Example **input** aerial image.
+
+.. figure:: figures/results_section.jpeg
+   :width: 100%
+   :align: center
+   :alt: Results view — job id, input, composite, mask, U-Net uncertainty, class mix, YOLO analytics
+
+   **Results** for one job: visualizations, U-Net class mix, and YOLO summary
+   plots (detections per class, confidence, detection centers).
+
+.. figure:: figures/detection_crops.jpeg
+   :width: 100%
+   :align: center
+   :alt: Grid of per-detection image crops
+
+   **Detection crops** (YOLO), each crop centered on a detected vehicle.
+
 Per job (under ``web/uploads/<uuid>/``) the UI may show ``out/input_preview.png``,
 ``out/class_mix.png``, ``out/yolo_analytics.png``, and ``out/crops/crop_NN.png``
 in addition to the CLI outputs above.
