@@ -1,0 +1,75 @@
+# ============================================================================
+# Unified configuration for the dual-model aerial pipeline
+# ----------------------------------------------------------------------------
+# Consumed by:
+#   - train/train_unet.py
+#   - train/train_yolo.py
+#   - inference/pipeline.py
+# Override any value with CLI flags where supported.
+# ============================================================================
+
+device:
+  # RX 6700S (gfx1032) is not officially supported by ROCm.
+  # Setting this env var before `import torch` makes HIP target gfx1030.
+  hsa_override_gfx_version: "10.3.0"
+  num_workers: 4
+  amp: true                 # torch.amp.autocast(cuda) — safe on ROCm
+  seed: 42
+
+paths:
+  results_dir: results
+  unet_ckpt_dir: results/unet/checkpoints
+  unet_figures_dir: results/unet/figures
+  yolo_runs_dir: results/yolo
+  inference_out_dir: results/inference
+
+# ----------------------------------------------------------------------------
+# U-Net semantic segmentation on ISPRS Potsdam (6 classes)
+# Dataset: kagglehub "deasadiqbal/private-data-1"
+# ----------------------------------------------------------------------------
+unet:
+  dataset:
+    kagglehub_handle: "deasadiqbal/private-data-1"
+    images_subdir: "patches/Images"
+    masks_subdir:  "patches/Labels"
+  image_size: [512, 512]
+  num_classes: 6
+  batch_size: 4
+  epochs: 50
+  lr: 1.0e-4
+  weight_decay: 1.0e-5
+  train_split: 0.8
+  # (id, name, r, g, b) — drives mask decode and inference palette
+  class_info:
+    - [0, "impervious_surface", 255, 255, 255]
+    - [1, "building",             0,   0, 255]
+    - [2, "low_vegetation",       0, 255, 255]
+    - [3, "tree",                 0, 255,   0]
+    - [4, "car",                255, 255,   0]
+    - [5, "clutter",            255,   0,   0]
+
+# ----------------------------------------------------------------------------
+# YOLOv8 oriented bounding-box detection on VSAI
+# Dataset: kagglehub "redzapdos123/vsai-dataset-yolo11-obb-format"
+# ----------------------------------------------------------------------------
+yolo:
+  dataset:
+    kagglehub_handle: "redzapdos123/vsai-dataset-yolo11-obb-format"
+    generated_yaml: "data/vsai_dataset.yaml"
+  model: "yolov8n-obb.pt"
+  imgsz: 1024
+  batch: 8
+  epochs: 100
+  patience: 20
+  workers: 4
+
+# ----------------------------------------------------------------------------
+# Combined inference
+# ----------------------------------------------------------------------------
+inference:
+  unet_weights: "results/unet/checkpoints/best.pth"
+  yolo_weights: "results/yolo/train/weights/best.pt"
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  mask_alpha: 0.45
+  box_thickness: 2

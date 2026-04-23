@@ -1,0 +1,250 @@
+
+Act as a senior computer vision engineer and generate a complete, production-ready Python project that implements a dual-model pipeline for aerial imagery using separate datasets for object detection and semantic segmentation.
+
+==================================================
+🧠 PROJECT OVERVIEW
+===================
+
+Build a modular system that:
+
+* Uses YOLOv8 for object detection (cars, trucks, people)
+* Uses U-Net for semantic segmentation (roads, buildings)
+* Trains both models independently on separate datasets
+* Combines outputs ONLY at inference time
+
+Datasets:
+
+* Object Detection: xView Dataset (bounding boxes)
+* Segmentation: SpaceNet Dataset (pixel-wise masks)
+
+==================================================
+⚠️ HARDWARE & PLATFORM CONSTRAINTS (CRITICAL)
+=============================================
+
+Target system:
+
+* GPU: AMD RX 6700S (gfx1032)
+* Backend: ROCm (HIP) — NOT CUDA
+
+Important constraint:
+
+* RX 6700S is NOT officially supported by ROCm
+* You MUST enable compatibility using:
+
+  export HSA_OVERRIDE_GFX_VERSION=10.3.0
+
+All code MUST:
+
+* Work with PyTorch ROCm build
+* Use torch.device("cuda") (ROCm maps to CUDA API)
+* Avoid ANY CUDA-specific or NVIDIA-only APIs
+* Run successfully when launched with:
+  HSA_OVERRIDE_GFX_VERSION=10.3.0 python infer.py
+
+==================================================
+🐍 PYTHON VERSION REQUIREMENT
+=============================
+
+* REQUIRED: Python 3.12.2
+
+However:
+
+* ROCm / PyTorch / Ultralytics may NOT fully support 3.12.2
+
+So you MUST:
+
+1. Attempt full setup using Python 3.12.2
+2. If incompatibilities occur:
+
+   * Detect and explain the issue clearly
+   * Provide a fully working fallback using Python 3.10 or 3.11
+   * Clearly separate both environments
+
+==================================================
+🐳 ENVIRONMENT SETUP (MANDATORY)
+================================
+
+Provide TWO setup options:
+
+### Option A (Preferred): Docker (ROCm)
+
+* Base image: rocm/pytorch:latest
+* Include full docker run command with:
+  --device=/dev/kfd
+  --device=/dev/dri
+  --ipc=host
+  --shm-size 8G
+* Ensure GPU works inside container
+
+### Option B: Local Installation
+
+* pip install with ROCm-compatible PyTorch wheels
+* All dependencies listed
+* Compatible with Python 3.12.2 (or fallback)
+
+==================================================
+📦 TECH STACK
+=============
+
+* PyTorch (ROCm build)
+* ultralytics (YOLOv8)
+* segmentation_models.pytorch (or custom U-Net)
+* OpenCV
+* Albumentations
+* NumPy
+
+==================================================
+📁 PROJECT STRUCTURE
+====================
+
+Generate a clean structure:
+
+* /data
+* /models
+* /train
+* /inference
+* /utils
+* config.yaml
+
+==================================================
+🔄 DATA PREPROCESSING
+=====================
+
+Implement scripts for:
+
+1. xView Dataset:
+
+   * Convert annotations → YOLO format
+   * Normalize + resize images
+
+2. SpaceNet Dataset:
+
+   * Convert polygons → segmentation masks
+   * Binary or multiclass masks
+
+3. Shared:
+
+   * Resize to consistent size (e.g., 512x512 or 1024x1024)
+   * Data augmentation using Albumentations:
+
+     * flips, rotations, scaling
+
+==================================================
+🏋️ TRAINING
+============
+
+### YOLO Training
+
+* Use Ultralytics API
+* Train on xView
+* Save trained weights
+
+### U-Net Training
+
+* Use PyTorch or segmentation_models.pytorch
+* Include:
+
+  * Dataset class
+  * DataLoader
+  * Loss (Dice + BCE or CrossEntropy)
+  * Training + validation loop
+  * Checkpoint saving
+
+==================================================
+🔍 INFERENCE PIPELINE (CORE FEATURE)
+====================================
+
+Create a script:
+
+python infer.py --image path.jpg
+
+Pipeline:
+
+1. Load trained YOLO + U-Net models
+2. Input: aerial image
+3. Run YOLO:
+
+   * Output bounding boxes, labels, confidence
+4. Run U-Net:
+
+   * Output segmentation mask
+5. Combine outputs:
+
+   * Draw bounding boxes (OpenCV)
+   * Overlay segmentation mask (transparent)
+6. Save final image
+
+==================================================
+📤 OUTPUTS
+==========
+
+* detections.json → bounding boxes
+* mask.png → segmentation mask
+* result.png → combined visualization
+
+==================================================
+⚙️ IMPLEMENTATION DETAILS
+=========================
+
+* Use:
+  torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+* Ensure:
+
+  * ROCm compatibility
+  * No CUDA-only ops
+  * Works with limited VRAM (~8GB)
+
+* Handle:
+
+  * Small batch sizes
+  * Optional mixed precision (ONLY if ROCm-safe)
+
+==================================================
+🚫 CONSTRAINTS
+==============
+
+* Models trained independently
+* NO instance segmentation
+* Tasks must remain separate:
+
+  * YOLO → object detection
+  * U-Net → semantic segmentation
+
+==================================================
+🎁 BONUS FEATURES
+=================
+
+* CLI interface
+* Config file for hyperparameters
+* Visualization utilities
+* Logging during training
+
+==================================================
+🎯 FINAL GOAL
+=============
+
+Produce clean, modular, production-quality code that:
+
+* Trains YOLO and U-Net separately on different datasets
+* Runs both models on a single aerial image
+* Combines detection + segmentation at inference time
+* Fully works on AMD ROCm with RX 6700S using:
+  HSA_OVERRIDE_GFX_VERSION=10.3.0
+* Uses Python 3.12.2 (with fallback if required)
+
+
+Data set for Yolo with bounding boxes are labels is this:
+
+import kagglehub
+
+# Download latest version
+path = kagglehub.dataset_download("redzapdos123/vsai-dataset-yolo11-obb-format")
+
+print("Path to dataset files:", path)
+
+
+Data set for U-Net is the following: (which has masks)
+
+KAGGLE_DATASET = "deasadiqbal/private-data-1"
+_CACHE_PATH = Path(kagglehub.dataset_download(KAGGLE_DATASET)) # indepotent

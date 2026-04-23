@@ -1,0 +1,7 @@
+# Force LF for shell scripts so CRLF from a Windows editor or a misconfigured
+# core.autocrlf setting can't re-break them (shebangs fail with `env: bash\r`).
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.py        text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf

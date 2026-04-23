@@ -1,9 +1,8 @@
-# Dataset (large files, not tracked in git)
-data/
+# Model outputs (checkpoints, figures, inference artifacts)
+results/
 
-# Model checkpoints and figures
-results/checkpoints/
-results/figures/
+# Auto-generated dataset YAML
+data/vsai_dataset.yaml
 
 # Python
 __pycache__/
@@ -18,11 +17,18 @@ build/
 # Virtual environments
 venv/
 .venv/
+.venv_yolo/
 env/
+.python-version
 
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb_checkpoints
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
 
 # OS
 .DS_Store
@@ -32,3 +38,16 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Kaggle cache (usually in $HOME, but just in case)
+.cache/
+
+# Local machine / container noise (never commit)
+.bash_history
+.config/
+
+# Large downloaded weights (use training scripts or releases)
+*.pt
+
+# LaTeX / build logs
+*.log
