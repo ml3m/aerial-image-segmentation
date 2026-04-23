@@ -23,6 +23,65 @@ combined **only at inference time**.
 
 Target hardware: AMD RX 6700S (gfx1032) running a ROCm build of PyTorch.
 
+Frontend (example screenshots)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These files under ``figures/`` are taken from the Flask UI: the **Run
+inference** view, a sample **input** image, the **Results** view (composites,
+mask, uncertainty, and analytics), and **per-detection crops** from YOLO.
+
+.. figure:: figures/top_of_page_upload_and_parameters_area.jpeg
+   :width: 100%
+   :align: center
+   :alt: Aerial segmentation web UI — upload and optional inference parameters
+
+   Upload, optional parameters (or defaults from ``config.yaml``), and **Run
+   models**.
+
+.. figure:: figures/original_aerial_picture.jpeg
+   :width: 100%
+   :align: center
+   :alt: Example aerial input image (highway interchange)
+
+   Example **input** aerial image.
+
+.. figure:: figures/results_section.jpeg
+   :width: 100%
+   :align: center
+   :alt: Results view — job id, input, composite, mask, U-Net uncertainty, class mix, YOLO analytics
+
+   **Results** for one job: visualizations, U-Net class mix, and YOLO summary
+   plots (detections per class, confidence, detection centers).
+
+.. figure:: figures/detection_crops.jpeg
+   :width: 100%
+   :align: center
+   :alt: Grid of per-detection image crops
+
+   **Detection crops** (YOLO), each crop centered on a detected vehicle.
+
+Per job (under ``web/uploads/<uuid>/``) the UI may show ``out/input_preview.png``,
+``out/class_mix.png``, ``out/yolo_analytics.png``, and ``out/crops/crop_NN.png``
+in addition to the CLI outputs above.
+
+Optional: set ``WEB_CLEAR_UPLOADS_ON_START=1`` to delete existing contents of
+the upload directory each time the app starts (default off; useful for dev).
+
+**Production:** use a **single** worker so only one inference uses the GPU at a time:
+
+::
+
+   gunicorn -w 1 -b 0.0.0.0:5000 'web.app:create_app()'
+
+Optional: set ``MAX_UPLOAD_MB`` (default 50) to cap upload size.
+
+**Docker:** the image installs ``requirements-web.txt`` and exposes port 5000.
+Override the container command, for example:
+
+::
+
+   ./docker-run.sh gunicorn -w 1 -b 0.0.0.0:5000 'web.app:create_app()'
+
 
 Project layout
 --------------
@@ -258,66 +317,6 @@ detection crops, and detections. After a successful POST, the app responds with
 **HTTP 303** so the browser does not replay the upload on Back; responses for
 result pages and job artifacts use ``Cache-Control: no-store, private`` to
 avoid stale thumbnails when navigating history.
-
-Frontend (example screenshots)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-These files under ``figures/`` are taken from the Flask UI: the **Run
-inference** view, a sample **input** image, the **Results** view (composites,
-mask, uncertainty, and analytics), and **per-detection crops** from YOLO.
-
-.. figure:: figures/top_of_page_upload_and_parameters_area.jpeg
-   :width: 100%
-   :align: center
-   :alt: Aerial segmentation web UI — upload and optional inference parameters
-
-   Upload, optional parameters (or defaults from ``config.yaml``), and **Run
-   models**.
-
-.. figure:: figures/original_aerial_picture.jpeg
-   :width: 100%
-   :align: center
-   :alt: Example aerial input image (highway interchange)
-
-   Example **input** aerial image.
-
-.. figure:: figures/results_section.jpeg
-   :width: 100%
-   :align: center
-   :alt: Results view — job id, input, composite, mask, U-Net uncertainty, class mix, YOLO analytics
-
-   **Results** for one job: visualizations, U-Net class mix, and YOLO summary
-   plots (detections per class, confidence, detection centers).
-
-.. figure:: figures/detection_crops.jpeg
-   :width: 100%
-   :align: center
-   :alt: Grid of per-detection image crops
-
-   **Detection crops** (YOLO), each crop centered on a detected vehicle.
-
-Per job (under ``web/uploads/<uuid>/``) the UI may show ``out/input_preview.png``,
-``out/class_mix.png``, ``out/yolo_analytics.png``, and ``out/crops/crop_NN.png``
-in addition to the CLI outputs above.
-
-Optional: set ``WEB_CLEAR_UPLOADS_ON_START=1`` to delete existing contents of
-the upload directory each time the app starts (default off; useful for dev).
-
-**Production:** use a **single** worker so only one inference uses the GPU at a time:
-
-::
-
-   gunicorn -w 1 -b 0.0.0.0:5000 'web.app:create_app()'
-
-Optional: set ``MAX_UPLOAD_MB`` (default 50) to cap upload size.
-
-**Docker:** the image installs ``requirements-web.txt`` and exposes port 5000.
-Override the container command, for example:
-
-::
-
-   ./docker-run.sh gunicorn -w 1 -b 0.0.0.0:5000 'web.app:create_app()'
-
 
 Tests
 -----
