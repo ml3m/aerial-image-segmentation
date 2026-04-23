@@ -30,6 +30,7 @@ Project layout
 ::
 
    aerial-image-segmentation/
+   ├── figures/                 optional PNGs for README (training / inference)
    ├── config.yaml              unified hyperparameters (YOLO + U-Net + paths)
    ├── requirements.txt
    ├── Dockerfile               rocm/pytorch:latest base + project deps
@@ -155,6 +156,63 @@ YOLOv8 OBB
 
    HSA_OVERRIDE_GFX_VERSION=10.3.0 python -m train.train_yolo
    python -m train.train_yolo --epochs 100 --batch 8 --imgsz 1024
+
+
+Example figures (training & inference)
+----------------------------------------
+
+Drop PNG screenshots under ``figures/`` (paths below). Until those files exist,
+GitHub may show broken image icons—this section documents the intended layout.
+
+**Training — YOLO (e.g. Ultralytics ``results.png``)**
+
+Copy from ``results/yolo/<run_name>/results.png`` after a run, or export your own
+plot, to:
+
+::
+
+   figures/training_yolo.png
+
+.. figure:: figures/training_yolo.png
+   :width: 100%
+   :align: center
+   :alt: YOLO training curves (loss and mAP vs epoch)
+
+   *Placeholder:* YOLOv8-OBB training curves (loss components, mAP50, mAP50-95).
+   Replace ``figures/training_yolo.png`` with your export.
+
+**Training — U-Net**
+
+Copy a loss plot from TensorBoard, a notebook, or a simple matplotlib export of
+``train_loss`` / ``val_loss`` vs epoch to:
+
+::
+
+   figures/training_unet.png
+
+.. figure:: figures/training_unet.png
+   :width: 100%
+   :align: center
+   :alt: U-Net training and validation loss vs epoch
+
+   *Placeholder:* U-Net segmentation loss (train vs val). Add after
+   ``python -m train.train_unet`` finishes.
+
+**Inference — combined output**
+
+After ``python infer.py --image …``, copy the composite (or a crop) to:
+
+::
+
+   figures/inference_composite.png
+
+.. figure:: figures/inference_composite.png
+   :width: 100%
+   :align: center
+   :alt: Aerial image with semantic mask overlay and oriented vehicle boxes
+
+   *Placeholder:* ``result.png`` style view—semantic mask overlay plus YOLO OBB
+   polygons and labels.
 
 
 Combined inference
