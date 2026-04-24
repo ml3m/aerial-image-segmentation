@@ -50,6 +50,59 @@ _TRAINING_FIGURES = frozenset(
 )
 
 
+def _read_detections(job_out: Path) -> list | None:
+    det_path = job_out / "detections.json"
+    if not det_path.is_file():
+        return None
+    try:
+        return json.loads(det_path.read_text())
+    except json.JSONDecodeError:
+        return []
+
+
+def _build_job_view(job_id: str, upload_root: Path) -> tuple[Path, dict[str, bool], list[str], list | None]:
+    job_out = upload_root / job_id / "out"
+    if not job_out.is_dir():
+        abort(404)
+
+    artifacts: dict[str, bool] = {}
+    for name in (
+        "result.png",
+        "mask.png",
+        "uncertainty.png",
+        "input_preview.png",
+        "class_mix.png",
+        "yolo_analytics.png",
+    ):
+        artifacts[name] = (job_out / name).is_file()
+
+    crop_urls: list[str] = []
+    crops_dir = job_out / "crops"
+    if crops_dir.is_dir():
+        for p in sorted(crops_dir.glob("crop_*.png")):
+            crop_urls.append(url_for("main.job_crop", job_id=job_id, filename=p.name))
+
+    detections = _read_detections(job_out)
+    return job_out, artifacts, crop_urls, detections
+
+
+def _recent_job_ids(upload_root: Path) -> list[str]:
+    jobs: list[tuple[float, str]] = []
+    for child in upload_root.iterdir():
+        if not child.is_dir():
+            continue
+        try:
+            uuid.UUID(child.name)
+        except ValueError:
+            continue
+        out_dir = child / "out"
+        if not out_dir.is_dir():
+            continue
+        jobs.append((child.stat().st_mtime, child.name))
+    jobs.sort(key=lambda x: x[0], reverse=True)
+    return [jid for _, jid in jobs]
+
+
 @bp.after_request
 def _no_store_when_needed(response):
     ep = request.endpoint
@@ -87,7 +140,10 @@ def _parse_optional_int(name: str) -> int | None:
 def index():
     cfg = load_config()
     job_id = request.args.get("job", "").strip()
+    upload_root: Path = current_app.config["UPLOAD_ROOT"]
     job_out: Path | None = None
+    artifacts: dict[str, bool] = {}
+    crop_urls: list[str] = []
     detections: list | None = None
     error: str | None = request.args.get("error")
 
@@ -96,35 +152,7 @@ def index():
             uuid.UUID(job_id)
         except ValueError:
             abort(404)
-        upload_root: Path = current_app.config["UPLOAD_ROOT"]
-        job_out = upload_root / job_id / "out"
-        if not job_out.is_dir():
-            abort(404)
-        det_path = job_out / "detections.json"
-        if det_path.is_file():
-            try:
-                detections = json.loads(det_path.read_text())
-            except json.JSONDecodeError:
-                detections = []
-
-    artifacts: dict[str, bool] = {}
-    crop_urls: list[str] = []
-    if job_out is not None and job_id:
-        for name in (
-            "result.png",
-            "mask.png",
-            "uncertainty.png",
-            "input_preview.png",
-            "class_mix.png",
-            "yolo_analytics.png",
-        ):
-            artifacts[name] = (job_out / name).is_file()
-        crops_dir = job_out / "crops"
-        if crops_dir.is_dir():
-            for p in sorted(crops_dir.glob("crop_*.png")):
-                crop_urls.append(
-                    url_for("main.job_crop", job_id=job_id, filename=p.name)
-                )
+        job_out, artifacts, crop_urls, detections = _build_job_view(job_id, upload_root)
 
     return render_template(
         "index.html",
@@ -226,6 +254,21 @@ def training_figure(filename: str):
 
 @bp.route("/training")
 def training():
+    upload_root: Path = current_app.config["UPLOAD_ROOT"]
+    recent_jobs = _recent_job_ids(upload_root)
+    previous_job_id = recent_jobs[1] if len(recent_jobs) > 1 else None
+
+    if previous_job_id:
+        _, artifacts, crop_urls, detections = _build_job_view(previous_job_id, upload_root)
+        return render_template(
+            "training.html",
+            previous_job_id=previous_job_id,
+            artifacts=artifacts,
+            crop_urls=crop_urls,
+            detections=detections,
+            figures=[],
+        )
+
     root: Path = current_app.config["PROJECT_ROOT"] / "figures"
     available = []
     labels = {
@@ -242,7 +285,19 @@ def training():
                     "url": url_for("main.training_figure", filename=fname),
                 }
             )
-    return render_template("training.html", figures=available)
+    return render_template(
+        "training.html",
+        previous_job_id=None,
+        artifacts={},
+        crop_urls=[],
+        detections=None,
+        figures=available,
+    )
+
+
+@bp.route("/about")
+def about():
+    return render_template("about.html")
 
 
 @bp.route("/health")

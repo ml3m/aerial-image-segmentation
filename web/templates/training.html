@@ -1,9 +1,84 @@
 {% extends "base.html" %}
-{% block title %}Training figures{% endblock %}
+{% block title %}Previous results{% endblock %}
 {% block content %}
-<h1>Training figures</h1>
-<p class="lead">Static plots from your training runs. Add PNGs under <code>figures/</code> in the repository (see README).</p>
+<section class="hero panel">
+  <p class="eyebrow">Historical Inference Lens</p>
+  <h1>Previous results</h1>
+  <p class="lead">This page shows the previous inference attempt (latest minus one) so you can compare your current run against the one before it.</p>
+</section>
 
+{% if previous_job_id %}
+<section class="panel results">
+  <h2>Previous job snapshot</h2>
+  <p class="hint">Job ID: <code>{{ previous_job_id }}</code></p>
+
+  <div class="results-grid figures">
+    {% if artifacts.get('input_preview.png') %}
+    <figure>
+      <figcaption>Input</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='input_preview.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=previous_job_id, filename='input_preview.png') }}" alt="Uploaded input preview">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('result.png') %}
+    <figure>
+      <figcaption>Composite</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='result.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=previous_job_id, filename='result.png') }}" alt="Composite: mask overlay and detections">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('mask.png') %}
+    <figure>
+      <figcaption>Semantic mask</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='mask.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=previous_job_id, filename='mask.png') }}" alt="U-Net semantic mask">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('uncertainty.png') %}
+    <figure>
+      <figcaption>U-Net uncertainty</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='uncertainty.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=previous_job_id, filename='uncertainty.png') }}" alt="U-Net entropy heatmap">
+      </a>
+    </figure>
+    {% endif %}
+  </div>
+
+  <div class="analytics-row figures">
+    {% if artifacts.get('class_mix.png') %}
+    <figure class="analytics-fig">
+      <figcaption>Class mix</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='class_mix.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=previous_job_id, filename='class_mix.png') }}" alt="Histogram of U-Net classes in mask">
+      </a>
+    </figure>
+    {% endif %}
+    {% if artifacts.get('yolo_analytics.png') %}
+    <figure class="analytics-fig wide">
+      <figcaption>YOLO analytics</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='yolo_analytics.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=previous_job_id, filename='yolo_analytics.png') }}" alt="YOLO counts, confidence, centers">
+      </a>
+    </figure>
+    {% endif %}
+  </div>
+
+  {% if crop_urls %}
+  <h3>Detection crops</h3>
+  <div class="crops-strip">
+    {% for u in crop_urls %}
+    <a class="crop-thumb" href="{{ u }}"><img src="{{ u }}" alt="Detection crop"></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <p><a href="{{ url_for('main.job_file', job_id=previous_job_id, filename='detections.json') }}" class="btn secondary">Download detections.json</a></p>
+</section>
+{% else %}
+<p class="lead">No previous tries yet. Showing static fallback figures from <code>figures/</code>.</p>
 {% if figures|length == 0 %}
 <p class="hint">No figures found. Copy exports to <code>figures/training_yolo.png</code>, <code>figures/training_unet.png</code>, or <code>figures/inference_composite.png</code>.</p>
 {% else %}
@@ -15,5 +90,6 @@
   </figure>
   {% endfor %}
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}

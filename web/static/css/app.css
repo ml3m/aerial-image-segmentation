@@ -1,14 +1,17 @@
 :root {
-  --bg: #f4f5f6;
-  --surface: #fff;
-  --text: #1c1d1f;
-  --muted: #5c5f66;
-  --accent: #0d5c5c;
-  --accent-hover: #094040;
-  --border: #d8dade;
-  --error-bg: #fce8e6;
-  --error-text: #8a1c12;
+  --bg: #e6edf1;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: #f7fbff;
+  --text: #14232f;
+  --muted: #4e6270;
+  --accent: #27b17b;
+  --accent-hover: #1b8e62;
+  --accent-soft: #8fe4ff;
+  --border: #c7d5df;
+  --error-bg: #fdeceb;
+  --error-text: #8f2924;
   --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --shadow: 0 14px 28px rgba(14, 34, 51, 0.11);
 }
 
 * {
@@ -21,7 +24,10 @@ body {
   font-size: 16px;
   line-height: 1.5;
   color: var(--text);
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 15% 12%, rgba(143, 228, 255, 0.35), transparent 36%),
+    radial-gradient(circle at 85% 0%, rgba(39, 177, 123, 0.18), transparent 30%),
+    linear-gradient(145deg, #eef4f8 0%, var(--bg) 45%, #dde5eb 100%);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -34,8 +40,9 @@ body {
 }
 
 .site-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(17, 40, 58, 0.96), rgba(14, 62, 66, 0.95));
+  border-bottom: 1px solid rgba(143, 228, 255, 0.24);
+  box-shadow: 0 4px 20px rgba(8, 18, 31, 0.32);
 }
 
 .site-header .wrap {
@@ -49,14 +56,29 @@ body {
 }
 
 .brand {
-  font-weight: 600;
-  font-size: 1.05rem;
-  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 1rem;
+  color: #f3fdff;
   text-decoration: none;
 }
 
+.brand-mark {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 40% 30%, #9fe9ff 16%, transparent 17%),
+    radial-gradient(circle at 72% 66%, #31d98f 18%, transparent 19%),
+    linear-gradient(135deg, #8fe4ff, #27b17b);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 .brand:hover {
-  color: var(--accent);
+  color: #d8fbff;
 }
 
 .nav {
@@ -65,13 +87,17 @@ body {
 }
 
 .nav a {
-  color: var(--muted);
+  color: rgba(232, 248, 255, 0.82);
   text-decoration: none;
   font-size: 0.95rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  transition: background 0.2s, color 0.2s;
 }
 
 .nav a:hover {
-  color: var(--accent);
+  color: #ecfffb;
+  background: rgba(143, 228, 255, 0.16);
 }
 
 .main {
@@ -81,10 +107,10 @@ body {
 }
 
 .site-footer {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(124, 144, 161, 0.35);
   padding: 1rem 0 1.5rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: #3e5260;
 }
 
 .site-footer p {
@@ -92,9 +118,10 @@ body {
 }
 
 h1 {
-  font-size: 1.65rem;
-  font-weight: 600;
+  font-size: 2rem;
+  font-weight: 700;
   margin: 0 0 0.5rem;
+  letter-spacing: 0.01em;
 }
 
 h2 {
@@ -116,9 +143,33 @@ h3 {
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 14px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(3px);
+}
+
+.hero {
+  background:
+    linear-gradient(135deg, rgba(12, 43, 61, 0.93), rgba(18, 82, 88, 0.9)),
+    linear-gradient(40deg, rgba(143, 228, 255, 0.22), rgba(39, 177, 123, 0.18));
+  color: #e8fbff;
+  border: 1px solid rgba(143, 228, 255, 0.28);
+}
+
+.hero .lead {
+  color: rgba(230, 251, 255, 0.9);
+  margin-bottom: 0;
+}
+
+.eyebrow {
+  margin: 0 0 0.25rem;
+  color: #98efff;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .banner {
@@ -135,7 +186,7 @@ h3 {
 
 .dropzone {
   border: 2px dashed var(--border);
-  border-radius: 6px;
+  border-radius: 12px;
   padding: 2rem 1.5rem;
   text-align: center;
   cursor: pointer;
@@ -147,12 +198,12 @@ h3 {
 .dropzone:focus {
   border-color: var(--accent);
   outline: none;
-  background: #fafbfb;
+  background: linear-gradient(130deg, #f6fdff, #edf8f4);
 }
 
 .dropzone.dragover {
   border-color: var(--accent);
-  background: #eef6f6;
+  background: linear-gradient(130deg, #eaf7ff, #e5f7f0);
 }
 
 .dropzone-text {
@@ -195,8 +246,15 @@ label input {
   margin-top: 0.35rem;
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   font: inherit;
+  background: rgba(255, 255, 255, 0.93);
+}
+
+label input:focus {
+  outline: none;
+  border-color: #61c8a0;
+  box-shadow: 0 0 0 3px rgba(58, 180, 136, 0.15);
 }
 
 .btn {
@@ -204,7 +262,7 @@ label input {
   padding: 0.55rem 1.1rem;
   font: inherit;
   font-size: 0.95rem;
-  border-radius: 4px;
+  border-radius: 999px;
   border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
@@ -212,22 +270,24 @@ label input {
 }
 
 .btn.primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, #1e9f72, #2dc28a 55%, #8fe4ff);
   color: #fff;
+  border: none;
+  box-shadow: 0 7px 18px rgba(28, 141, 107, 0.28);
 }
 
 .btn.primary:hover {
-  background: var(--accent-hover);
+  background: linear-gradient(135deg, #1a8a63, #25aa79 55%, #76d9f8);
 }
 
 .btn.secondary {
-  background: var(--surface);
-  color: var(--accent);
-  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.78);
+  color: #187a67;
+  border-color: #7ccab2;
 }
 
 .btn.secondary:hover {
-  background: #eef6f6;
+  background: linear-gradient(130deg, #f4fdff, #ecf9f5);
 }
 
 .results .figures {
@@ -269,7 +329,7 @@ label input {
   max-height: 120px;
   width: auto;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   vertical-align: middle;
 }
 
@@ -291,7 +351,7 @@ label input {
   max-width: 100%;
   height: auto;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 10px;
   vertical-align: middle;
 }
 
@@ -299,6 +359,9 @@ label input {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .table th,
@@ -349,7 +412,7 @@ label input {
 
 code {
   font-size: 0.88em;
-  background: #eef0f2;
+  background: #e9eff4;
   padding: 0.12rem 0.35rem;
   border-radius: 3px;
 }
