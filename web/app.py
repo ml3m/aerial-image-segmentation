@@ -9,12 +9,24 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 from utils.device import apply_hsa_override
 
 
+def _force_utf8_std_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def create_app(test_config: dict | None = None):
+    _force_utf8_std_streams()
     apply_hsa_override()
 
     from flask import Flask

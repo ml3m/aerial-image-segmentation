@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Run inference{% endblock %}
 {% block content %}
-<h1>Run inference</h1>
-<p class="lead">Upload an aerial image (PNG, JPEG, or TIFF). Outputs include composite, semantic mask, U-Net uncertainty, detection JSON, class-mix and YOLO summary plots, and per-detection crops when available.</p>
+<section class="hero panel">
+  <p class="eyebrow">Geo-AI Inference Platform</p>
+  <h1>URBAN-SYNAPSE</h1>
+  <p class="lead"> Upload an image and generate semantic masks, oriented detections, uncertainty maps, and analytics in one flow.</p>
+</section>
 
 {% if error %}
 <div class="banner banner-error" role="alert">{{ error }}</div>
 {% endif %}
 
 <section class="panel">
+  <h2>Run inference</h2>
   <form id="infer-form"
         action="{{ url_for('main.infer') }}"
         method="post"

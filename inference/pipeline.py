@@ -87,7 +87,7 @@ def _run_yolo(
       - the model produces zero detections.
     """
     if yolo_weights is None or not Path(yolo_weights).is_file():
-        print(f"[infer] no YOLO weights at {yolo_weights} — returning empty detections")
+        print(f"[infer] no YOLO weights at {yolo_weights} -- returning empty detections")
         return []
 
     from models.yolo import load_yolo
@@ -166,7 +166,7 @@ def run_inference(
         if weights.is_file():
             load_checkpoint(weights, unet_model, optimizer=None, device=device)
         else:
-            print(f"[infer] no U-Net weights at {weights} — using random init")
+            print(f"[infer] no U-Net weights at {weights} -- using random init")
     else:
         unet_model = unet_model.to(device)
 
@@ -215,9 +215,9 @@ def run_inference(
 
     print(
         f"[infer] done:\n"
-        f"  detections: {len(detections):>4d} → {paths['detections']}\n"
-        f"  mask                  → {paths['mask']}\n"
-        f"  uncertainty           → {paths['uncertainty']}\n"
-        f"  composite             → {paths['result']}"
+        f"  detections: {len(detections):>4d} -> {paths['detections']}\n"
+        f"  mask                  -> {paths['mask']}\n"
+        f"  uncertainty           -> {paths['uncertainty']}\n"
+        f"  composite             -> {paths['result']}"
     )
     return {k: str(v) for k, v in paths.items()}
