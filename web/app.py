@@ -15,6 +15,11 @@ from pathlib import Path
 from utils.device import apply_hsa_override
 
 
+def _env_truthy(name: str) -> bool:
+    v = os.environ.get(name, "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
 def _force_utf8_std_streams() -> None:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -56,7 +61,8 @@ def create_app(test_config: dict | None = None):
     upload_root: Path = app.config["UPLOAD_ROOT"]
     upload_root.mkdir(parents=True, exist_ok=True)
 
-    if os.environ.get("WEB_CLEAR_UPLOADS_ON_START") == "1":
+    # Fresh uploads on every process start unless WEB_KEEP_UPLOADS_ON_START is set.
+    if not _env_truthy("WEB_KEEP_UPLOADS_ON_START"):
         for child in upload_root.iterdir():
             if child.is_dir():
                 shutil.rmtree(child, ignore_errors=True)

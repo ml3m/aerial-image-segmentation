@@ -149,8 +149,8 @@ def test_index_no_store_when_job_in_query(app, client):
     assert "no-store" in r.headers.get("Cache-Control", "").lower()
 
 
-def test_clear_uploads_on_start(tmp_path, monkeypatch):
-    monkeypatch.setenv("WEB_CLEAR_UPLOADS_ON_START", "1")
+def test_clears_uploads_on_start_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("WEB_KEEP_UPLOADS_ON_START", raising=False)
     upload = tmp_path / "up"
     upload.mkdir()
     stale = upload / "stale"
@@ -161,7 +161,22 @@ def test_clear_uploads_on_start(tmp_path, monkeypatch):
 
     create_app({"TESTING": True, "UPLOAD_ROOT": upload})
     assert not stale.exists()
-    monkeypatch.delenv("WEB_CLEAR_UPLOADS_ON_START", raising=False)
+
+
+def test_keeps_uploads_when_env_set(tmp_path, monkeypatch):
+    monkeypatch.setenv("WEB_KEEP_UPLOADS_ON_START", "1")
+    upload = tmp_path / "up"
+    upload.mkdir()
+    stale = upload / "stale"
+    stale.mkdir()
+    (stale / "x.txt").write_text("old")
+
+    from web.app import create_app
+
+    create_app({"TESTING": True, "UPLOAD_ROOT": upload})
+    assert stale.is_dir()
+    assert (stale / "x.txt").read_text() == "old"
+    monkeypatch.delenv("WEB_KEEP_UPLOADS_ON_START", raising=False)
 
 
 def test_training_page_ok(client):

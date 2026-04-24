@@ -64,8 +64,9 @@ Per job (under ``web/uploads/<uuid>/``) the UI may show ``out/input_preview.png`
 ``out/class_mix.png``, ``out/yolo_analytics.png``, and ``out/crops/crop_NN.png``
 in addition to the CLI outputs above.
 
-Optional: set ``WEB_CLEAR_UPLOADS_ON_START=1`` to delete existing contents of
-the upload directory each time the app starts (default off; useful for dev).
+The app **clears** ``web/uploads/`` on each start so old jobs are not reused after
+a restart. Set ``WEB_KEEP_UPLOADS_ON_START=1`` only if you need to preserve uploads
+across restarts (e.g. debugging).
 
 **Production:** use a **single** worker so only one inference uses the GPU at a time:
 
