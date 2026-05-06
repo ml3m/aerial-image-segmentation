@@ -38,10 +38,12 @@ _JOB_FILES = frozenset(
         "result.png",
         "mask_raw.png",
         "mask.png",
+        "mask_diff.png",
         "detections.json",
         "uncertainty.png",
         "class_mix.png",
         "yolo_analytics.png",
+        "morph_stats_plot.png",
         "input_preview.png",
     }
 )
@@ -61,7 +63,17 @@ def _read_detections(job_out: Path) -> list | None:
         return []
 
 
-def _build_job_view(job_id: str, upload_root: Path) -> tuple[Path, dict[str, bool], list[str], list | None]:
+def _read_morph_stats(job_out: Path) -> dict | None:
+    stats_path = job_out / "morph_stats.json"
+    if not stats_path.is_file():
+        return None
+    try:
+        return json.loads(stats_path.read_text())
+    except json.JSONDecodeError:
+        return None
+
+
+def _build_job_view(job_id: str, upload_root: Path) -> tuple[Path, dict[str, bool], list[str], list | None, dict | None]:
     job_out = upload_root / job_id / "out"
     if not job_out.is_dir():
         abort(404)
@@ -71,10 +83,12 @@ def _build_job_view(job_id: str, upload_root: Path) -> tuple[Path, dict[str, boo
         "result.png",
         "mask_raw.png",
         "mask.png",
+        "mask_diff.png",
         "uncertainty.png",
         "input_preview.png",
         "class_mix.png",
         "yolo_analytics.png",
+        "morph_stats_plot.png",
     ):
         artifacts[name] = (job_out / name).is_file()
 
@@ -85,7 +99,8 @@ def _build_job_view(job_id: str, upload_root: Path) -> tuple[Path, dict[str, boo
             crop_urls.append(url_for("main.job_crop", job_id=job_id, filename=p.name))
 
     detections = _read_detections(job_out)
-    return job_out, artifacts, crop_urls, detections
+    morph_stats = _read_morph_stats(job_out)
+    return job_out, artifacts, crop_urls, detections, morph_stats
 
 
 def _recent_job_ids(upload_root: Path) -> list[str]:
@@ -147,6 +162,7 @@ def index():
     artifacts: dict[str, bool] = {}
     crop_urls: list[str] = []
     detections: list | None = None
+    morph_stats: dict | None = None
     error: str | None = request.args.get("error")
 
     if job_id:
@@ -154,7 +170,7 @@ def index():
             uuid.UUID(job_id)
         except ValueError:
             abort(404)
-        job_out, artifacts, crop_urls, detections = _build_job_view(job_id, upload_root)
+        job_out, artifacts, crop_urls, detections, morph_stats = _build_job_view(job_id, upload_root)
 
     return render_template(
         "index.html",
@@ -167,6 +183,7 @@ def index():
         },
         job_id=job_id if job_out else None,
         detections=detections,
+        morph_stats=morph_stats,
         error=error,
         artifacts=artifacts,
         crop_urls=crop_urls,
@@ -261,7 +278,7 @@ def training():
     previous_job_id = recent_jobs[1] if len(recent_jobs) > 1 else None
 
     if previous_job_id:
-        _, artifacts, crop_urls, detections = _build_job_view(previous_job_id, upload_root)
+        _, artifacts, crop_urls, detections, _ = _build_job_view(previous_job_id, upload_root)
         return render_template(
             "training.html",
             previous_job_id=previous_job_id,
@@ -300,6 +317,26 @@ def training():
 @bp.route("/about")
 def about():
     return render_template("about.html")
+
+
+@bp.route("/jobs/<job_id>/report")
+def job_report(job_id: str):
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        abort(404)
+    upload_root: Path = current_app.config["UPLOAD_ROOT"]
+    _, artifacts, crop_urls, detections, morph_stats = _build_job_view(job_id, upload_root)
+    cfg = load_config()
+    return render_template(
+        "report.html",
+        cfg=cfg,
+        job_id=job_id,
+        artifacts=artifacts,
+        crop_urls=crop_urls,
+        detections=detections,
+        morph_stats=morph_stats,
+    )
 
 
 @bp.route("/health")

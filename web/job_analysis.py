@@ -121,6 +121,41 @@ def write_yolo_analytics(
     plt.close(fig)
 
 
+def write_morph_stats_plot(stats: dict, out_path: Path) -> None:
+    """Bar chart showing how many pixels were reclassified by each post-processing filter."""
+    labels = ["Shape filter\n(blobs)", "Car-overlap\n(blobs)", "Shape filter\n(pixels)", "Car-overlap\n(pixels)"]
+    values = [
+        stats.get("shape_filter_blobs", 0),
+        stats.get("car_overlap_blobs", 0),
+        stats.get("shape_filter_pixels", 0),
+        stats.get("car_overlap_pixels", 0),
+    ]
+    colors = ["#4a8c6f", "#8c4a4a", "#2a6f8c", "#8c6f2a"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3.5))
+
+    # Left: blobs
+    axes[0].bar([labels[0], labels[1]], [values[0], values[1]], color=colors[:2], edgecolor="#222")
+    axes[0].set_ylabel("Blobs reclassified")
+    axes[0].set_title("Building blobs -> Road")
+    for i, v in enumerate([values[0], values[1]]):
+        if v > 0:
+            axes[0].text(i, v, str(v), ha="center", va="bottom", fontsize=9)
+
+    # Right: pixels
+    axes[1].bar([labels[2], labels[3]], [values[2], values[3]], color=colors[2:], edgecolor="#222")
+    axes[1].set_ylabel("Pixels reclassified")
+    axes[1].set_title("Pixels reclassified -> Road")
+    for i, v in enumerate([values[2], values[3]]):
+        if v > 0:
+            axes[1].text(i, v, str(v), ha="center", va="bottom", fontsize=9)
+
+    fig.suptitle("Morphological post-processing: reclassification impact", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
 def write_detection_crops(
     image_bgr: np.ndarray,
     detections: list,
@@ -205,3 +240,11 @@ def run_job_analysis(job_root: Path, cfg: Config) -> None:
             write_detection_crops(img3, detections, out / "crops")
     except Exception:  # noqa: BLE001
         log.exception("run_job_analysis: detection crops failed")
+
+    morph_stats_path = out / "morph_stats.json"
+    if morph_stats_path.is_file():
+        try:
+            stats = json.loads(morph_stats_path.read_text())
+            write_morph_stats_plot(stats, out / "morph_stats_plot.png")
+        except Exception:  # noqa: BLE001
+            log.exception("run_job_analysis: morph_stats_plot failed")
