@@ -84,6 +84,14 @@
       </a>
     </figure>
     {% endif %}
+    {% if artifacts.get('mask_diff.png') %}
+    <figure>
+      <figcaption>Post-processing diff</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='mask_diff.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='mask_diff.png') }}" alt="Pixels changed by morphological post-processing">
+      </a>
+    </figure>
+    {% endif %}
     {% if artifacts.get('uncertainty.png') %}
     <figure>
       <figcaption>U-Net uncertainty</figcaption>
@@ -111,6 +119,14 @@
       </a>
     </figure>
     {% endif %}
+    {% if artifacts.get('morph_stats_plot.png') %}
+    <figure class="analytics-fig wide">
+      <figcaption>Morphological reclassification</figcaption>
+      <a href="{{ url_for('main.job_file', job_id=job_id, filename='morph_stats_plot.png') }}">
+        <img src="{{ url_for('main.job_file', job_id=job_id, filename='morph_stats_plot.png') }}" alt="Building to road reclassification stats">
+      </a>
+    </figure>
+    {% endif %}
   </div>
 
   {% if crop_urls %}
@@ -122,7 +138,28 @@
   </div>
   {% endif %}
 
-  <p><a href="{{ url_for('main.job_file', job_id=job_id, filename='detections.json') }}" class="btn secondary">Download detections.json</a></p>
+  <p><a href="{{ url_for('main.job_file', job_id=job_id, filename='detections.json') }}" class="btn secondary">Download detections.json</a>
+  &nbsp;
+  <a href="{{ url_for('main.job_report', job_id=job_id) }}" class="btn secondary" target="_blank">&#128196; Export PDF Report</a></p>
+
+  {% if morph_stats is not none %}
+  <h3>Post-processing reclassification</h3>
+  <table class="table">
+    <thead><tr><th>Filter</th><th>Blobs reclassified</th><th>Pixels reclassified</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Shape filter (aspect ratio / circularity)</td>
+        <td>{{ morph_stats.shape_filter_blobs }}</td>
+        <td>{{ morph_stats.shape_filter_pixels }}</td>
+      </tr>
+      <tr>
+        <td>Car-overlap heuristic</td>
+        <td>{{ morph_stats.car_overlap_blobs }}</td>
+        <td>{{ morph_stats.car_overlap_pixels }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
 
   <h3>Class legend (U-Net)</h3>
   <table class="table">

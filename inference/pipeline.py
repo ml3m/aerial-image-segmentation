@@ -182,7 +182,13 @@ def run_inference(
 
     # --- Morphological Post-Processing ---
     cleaned_mask = np.zeros_like(mask)
-    
+    morph_stats: dict[str, int] = {
+        "shape_filter_blobs": 0,
+        "shape_filter_pixels": 0,
+        "car_overlap_blobs": 0,
+        "car_overlap_pixels": 0,
+    }
+
     # Pre-compute car mask to identify roads misclassified as buildings
     car_mask = (mask == 4).astype(np.uint8)
 
@@ -198,25 +204,30 @@ def run_inference(
         if area < 50:
             cv2.drawContours(cleaned_mask, [cnt], -1, 1, -1)
             continue
-            
+
         rect = cv2.minAreaRect(cnt)
         (w, h) = rect[1]
         aspect_ratio = max(w, h) / min(w, h) if min(w, h) > 0 else 0
-        
+
         perimeter = cv2.arcLength(cnt, True)
         circularity = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
-        
+
         # Check car overlap: create a filled mask of this blob's outer boundary
         blob_mask = np.zeros_like(closed)
         cv2.drawContours(blob_mask, [cnt], -1, 1, -1)
-        overlaps_car = (blob_mask & car_mask).any()
+        overlaps_car = bool((blob_mask & car_mask).any())
+        blob_pixel_count = int(blob_mask.sum())
 
         # Heuristic for roads: highly elongated, low circularity, OR has a car on it
-        if aspect_ratio > 7.0 or circularity < 0.07 or overlaps_car:
-            pass # Implicitly leave as 0 (roads/pavement)
+        if overlaps_car:
+            morph_stats["car_overlap_blobs"] += 1
+            morph_stats["car_overlap_pixels"] += blob_pixel_count
+        elif aspect_ratio > 7.0 or circularity < 0.07:
+            morph_stats["shape_filter_blobs"] += 1
+            morph_stats["shape_filter_pixels"] += blob_pixel_count
         else:
             cv2.drawContours(cleaned_mask, [cnt], -1, 1, -1)
-    
+
     # 2: low_vegetation, 3: tree
     kernel_veg = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     for c in [2, 3]:
@@ -231,14 +242,14 @@ def run_inference(
     opened = cv2.morphologyEx(class_bin, cv2.MORPH_OPEN, kernel_car)
     closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel_car)
     cleaned_mask[closed == 1] = 4
-    
+
     # 5: clutter
     class_bin = (mask == 5).astype(np.uint8)
     kernel_clutter = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     opened = cv2.morphologyEx(class_bin, cv2.MORPH_OPEN, kernel_clutter)
     closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel_clutter)
     cleaned_mask[closed == 1] = 5
-    
+
     mask = cleaned_mask
 
     # --- YOLO --------------------------------------------------------------
@@ -267,25 +278,39 @@ def run_inference(
     mask_rgb = palette_rgb[np.clip(mask, 0, palette_rgb.shape[0] - 1)]
     mask_bgr = cv2.cvtColor(mask_rgb.astype(np.uint8), cv2.COLOR_RGB2BGR)
 
+    # --- Diff heatmap (pixels changed by post-processing) ---
+    diff = (mask_raw != mask).astype(np.uint8) * 255
+    diff_color = cv2.applyColorMap(diff, cv2.COLORMAP_HOT)
+    # Black-out unchanged pixels so only changes pop
+    diff_color[diff == 0] = 0
+
     paths = {
         "mask_raw": out_dir / "mask_raw.png",
         "mask": out_dir / "mask.png",
+        "mask_diff": out_dir / "mask_diff.png",
         "result": out_dir / "result.png",
         "detections": out_dir / "detections.json",
         "uncertainty": out_dir / "uncertainty.png",
+        "morph_stats": out_dir / "morph_stats.json",
     }
     cv2.imwrite(str(paths["mask_raw"]), mask_raw_bgr)
     cv2.imwrite(str(paths["mask"]), mask_bgr)
+    cv2.imwrite(str(paths["mask_diff"]), diff_color)
     cv2.imwrite(str(paths["result"]), composite_bgr)
     cv2.imwrite(str(paths["uncertainty"]), uncertainty_bgr)
     with paths["detections"].open("w") as f:
         json.dump(_serialize_detections(detections), f, indent=2)
+    with paths["morph_stats"].open("w") as f:
+        json.dump(morph_stats, f, indent=2)
 
+    total_changed = int((mask_raw != mask).sum())
     print(
         f"[infer] done:\n"
         f"  detections: {len(detections):>4d} -> {paths['detections']}\n"
         f"  mask                  -> {paths['mask']}\n"
+        f"  mask_diff ({total_changed} px changed) -> {paths['mask_diff']}\n"
         f"  uncertainty           -> {paths['uncertainty']}\n"
-        f"  composite             -> {paths['result']}"
+        f"  composite             -> {paths['result']}\n"
+        f"  morph_stats           -> {paths['morph_stats']}"
     )
     return {k: str(v) for k, v in paths.items()}
